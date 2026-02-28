@@ -17,7 +17,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const result = await sql`
-    SELECT id, name, gender, birth_year, civil_status, city, county
+    SELECT id, name, gender, birth_year, civil_status, city, county, avatar_url
     FROM users WHERE is_admin = FALSE AND status = 'approved' AND id != ${user.id}
     ORDER BY name ASC`;
 
