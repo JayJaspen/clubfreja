@@ -1,6 +1,33 @@
 'use client';
+import { useState, useEffect, useRef } from 'react';
+
+const COUNTIES = [
+  'Blekinge','Dalarna','Gotland','Gävleborg','Halland','Jämtland','Jönköping',
+  'Kalmar','Kronoberg','Norrbotten','Skåne','Stockholm','Södermanland','Uppsala',
+  'Värmland','Västerbotten','Västernorrland','Västmanland','Västra Götaland','Örebro','Östergötland'
+];
+const GM: Record<string,string> = { male:'Man', female:'Kvinna', other:'Annat' };
+const CM: Record<string,string> = { single:'Singel', taken:'Upptagen', undisclosed:'Vill ej ange' };
 
 export default function DashboardPage() {
+  const [tab, setTab] = useState<string>('overview');
+  const [userName, setUserName] = useState('');
+
+  useEffect(() => {
+    fetch('/api/user/profile').then(r => r.json()).then(d => {
+      if (d.user) setUserName(d.user.name);
+    });
+  }, []);
+
+  const tabs = [
+    { key: 'overview', label: 'Översikt' },
+    { key: 'members', label: 'Medlemmar' },
+    { key: 'chat', label: 'Chat' },
+    { key: 'communities', label: 'Communities' },
+    { key: 'events', label: 'Evenemang' },
+    { key: 'profile', label: 'Min Profil' },
+  ];
+
   return (
     <div style={{ minHeight: '100vh' }}>
       <div className="grain" />
@@ -10,16 +37,455 @@ export default function DashboardPage() {
           <h1>Club Freja</h1>
         </div>
         <div className="user-pill">
-          <div className="avatar">M</div>
-          <button className="logout-btn" onClick={async () => { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/'; }}>Logga ut</button>
+          <div className="avatar">{userName?.charAt(0)?.toUpperCase() || 'M'}</div>
+          <span style={{ color: 'var(--gold-light)', fontSize: '.92rem' }}>{userName}</span>
+          <button className="logout-btn" onClick={async () => { await fetch('/api/logout',{method:'POST'}); window.location.href='/'; }}>Logga ut</button>
         </div>
       </header>
-      <div style={{ maxWidth: 800, margin: '3rem auto', textAlign: 'center', padding: '0 1rem' }}>
-        <div className="panel">
-          <h2>Välkommen till Club Freja</h2>
-          <p>🏗️ Användar-dashboarden byggs i Steg 3. Inloggningen fungerar!</p>
+      <div className="tab-bar">
+        {tabs.map(t => (
+          <button key={t.key} className={`tab-btn ${tab===t.key?'active':''}`}
+            onClick={() => setTab(t.key)}>{t.label}</button>
+        ))}
+      </div>
+      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '0 1.5rem 3rem' }}>
+        {tab==='overview' && <OverviewTab />}
+        {tab==='members' && <MembersTab />}
+        {tab==='chat' && <ChatTab />}
+        {tab==='communities' && <CommunitiesTab />}
+        {tab==='events' && <EventsTab />}
+        {tab==='profile' && <ProfileTab />}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ OVERVIEW ═══ */
+function OverviewTab() {
+  const [members, setMembers] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/user/members').then(r=>r.json()).then(d=>setMembers(d.members||[]));
+  }, []);
+
+  return (
+    <>
+      <div className="panel">
+        <h2>Välkommen till Club Freja</h2>
+        <p>Du är nu medlem i Södra Sveriges mest exklusiva sällskap.</p>
+      </div>
+      <div className="panel">
+        <h2 style={{ fontSize: '1.3rem' }}>Medlemmar online</h2>
+        {members.length === 0 ? (
+          <p style={{ fontStyle: 'italic', opacity: .5, marginTop: '1rem' }}>Inga andra medlemmar ännu</p>
+        ) : (
+          members.slice(0,8).map(m => (
+            <div key={m.id} style={{ padding: '.8rem 0', borderBottom: '1px solid var(--gold-dark)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div className="avatar">{m.name.charAt(0).toUpperCase()}</div>
+              <div>
+                <div style={{ color: 'var(--gold-light)', fontWeight: 500 }}>{m.name}</div>
+                <div style={{ color: 'var(--gold-dark)', fontSize: '.85rem' }}>
+                  <span style={{ display: 'inline-block', width: 8, height: 8, background: '#28a745', borderRadius: '50%', marginRight: '.4rem' }}/>Online
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ═══ MEMBERS ═══ */
+function MembersTab() {
+  const [members, setMembers] = useState<any[]>([]);
+  useEffect(() => {
+    fetch('/api/user/members').then(r=>r.json()).then(d=>setMembers(d.members||[]));
+  }, []);
+  const yr = new Date().getFullYear();
+
+  return (
+    <div className="panel">
+      <h2>Medlemskort</h2>
+      <p>Bläddra bland våra exklusiva medlemmar</p>
+      {members.length === 0 ? (
+        <p style={{ fontStyle: 'italic', opacity: .5, marginTop: '1.5rem', textAlign: 'center' }}>Inga andra medlemmar ännu</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem', marginTop: '1.5rem' }}>
+          {members.map(m => (
+            <div key={m.id} style={{
+              background: 'var(--black-lighter)', border: '1px solid var(--gold-dark)',
+              padding: '1.5rem', textAlign: 'center', transition: 'all .3s', cursor: 'default',
+            }}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--gold)';e.currentTarget.style.transform='translateY(-4px)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--gold-dark)';e.currentTarget.style.transform='none';}}>
+              <div className="avatar" style={{ width: 80, height: 80, fontSize: '2rem', margin: '0 auto 1rem' }}>{m.name.charAt(0).toUpperCase()}</div>
+              <div style={{ color: 'var(--gold-light)', fontSize: '1.1rem', marginBottom: '.3rem' }}>{m.name}</div>
+              <div style={{ color: 'var(--gold-dark)', fontSize: '.85rem' }}>{m.city || m.county} · {yr - m.birth_year} år</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══ CHAT ═══ */
+function ChatTab() {
+  const [convos, setConvos] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
+  const [activeChat, setActiveChat] = useState<number|null>(null);
+  const [activeName, setActiveName] = useState('');
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const msgEndRef = useRef<HTMLDivElement>(null);
+
+  const loadConvos = () => fetch('/api/user/chat').then(r=>r.json()).then(d=>setConvos(d.conversations||[]));
+  const loadMembers = () => fetch('/api/user/members').then(r=>r.json()).then(d=>setMembers(d.members||[]));
+
+  useEffect(() => { loadConvos(); loadMembers(); }, []);
+
+  const openChat = async (partnerId: number, name: string) => {
+    setActiveChat(partnerId); setActiveName(name);
+    const res = await fetch(`/api/user/chat?with=${partnerId}`);
+    const data = await res.json();
+    setMessages(data.messages || []);
+    setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
+
+  const sendMsg = async () => {
+    if (!input.trim() || !activeChat) return;
+    setSending(true);
+    await fetch('/api/user/chat', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ receiverId: activeChat, message: input.trim() }),
+    });
+    setInput('');
+    const res = await fetch(`/api/user/chat?with=${activeChat}`);
+    const data = await res.json();
+    setMessages(data.messages || []);
+    setSending(false);
+    setTimeout(() => msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+  };
+
+  // Refresh messages every 5s if chat is open
+  useEffect(() => {
+    if (!activeChat) return;
+    const iv = setInterval(async () => {
+      const res = await fetch(`/api/user/chat?with=${activeChat}`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [activeChat]);
+
+  return (
+    <div className="panel">
+      <h2>Chattar</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1rem', marginTop: '1rem', height: 500 }}>
+        {/* Sidebar */}
+        <div style={{ border: '1px solid var(--gold-dark)', background: 'var(--black-lighter)', overflowY: 'auto' }}>
+          <h3 style={{ padding: '1rem', color: 'var(--gold)', fontSize: '1rem', borderBottom: '1px solid var(--gold-dark)' }}>Kontakter</h3>
+          {members.map(m => {
+            const hasConvo = convos.find(c => c.partner_id === m.id);
+            const unread = hasConvo?.unread_count || 0;
+            return (
+              <div key={m.id} onClick={() => openChat(m.id, m.name)} style={{
+                padding: '.8rem 1rem', cursor: 'pointer', borderBottom: '1px solid rgba(184,148,31,.15)',
+                background: activeChat === m.id ? 'rgba(212,175,55,.1)' : 'transparent',
+                display: 'flex', alignItems: 'center', gap: '.7rem', transition: 'background .2s',
+              }}
+                onMouseEnter={e=>{if(activeChat!==m.id)e.currentTarget.style.background='rgba(212,175,55,.05)';}}
+                onMouseLeave={e=>{if(activeChat!==m.id)e.currentTarget.style.background='transparent';}}>
+                <div className="avatar" style={{ width: 32, height: 32, fontSize: '.8rem', flexShrink: 0 }}>{m.name.charAt(0).toUpperCase()}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: 'var(--gold-light)', fontSize: '.9rem', fontWeight: 500 }}>{m.name}</div>
+                </div>
+                {unread > 0 && (
+                  <span style={{ background: 'var(--gold)', color: 'var(--black)', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.7rem', fontWeight: 700 }}>{unread}</span>
+                )}
+              </div>
+            );
+          })}
+          {members.length === 0 && <p style={{ padding: '1rem', fontStyle: 'italic', opacity: .5, fontSize: '.9rem' }}>Inga medlemmar</p>}
+        </div>
+
+        {/* Chat area */}
+        <div style={{ border: '1px solid var(--gold-dark)', display: 'flex', flexDirection: 'column', background: 'var(--black-lighter)' }}>
+          <div style={{ padding: '.8rem 1rem', borderBottom: '1px solid var(--gold-dark)', background: 'var(--black)', color: 'var(--gold)' }}>
+            {activeName || 'Välj en kontakt'}
+          </div>
+          <div style={{ flex: 1, padding: '1rem', overflowY: 'auto' }}>
+            {messages.map(msg => {
+              const isMine = msg.sender_name !== activeName;
+              return (
+                <div key={msg.id} style={{ marginBottom: '.8rem', display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth: '70%', padding: '.6rem 1rem', borderRadius: 4,
+                    background: isMine ? 'rgba(212,175,55,.15)' : 'var(--black)',
+                    border: `1px solid ${isMine ? 'var(--gold-dark)' : 'rgba(184,148,31,.2)'}`,
+                  }}>
+                    <div style={{ color: 'var(--gold-light)', fontSize: '.92rem' }}>{msg.message}</div>
+                    <div style={{ color: 'var(--gold-dark)', fontSize: '.7rem', marginTop: '.3rem', textAlign: 'right' }}>
+                      {new Date(msg.created_at).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={msgEndRef} />
+          </div>
+          {activeChat && (
+            <div style={{ padding: '.8rem', borderTop: '1px solid var(--gold-dark)', display: 'flex', gap: '.5rem' }}>
+              <input className="field" value={input} onChange={e=>setInput(e.target.value)}
+                placeholder="Skriv ett meddelande…"
+                onKeyDown={e => { if(e.key==='Enter') sendMsg(); }}
+                style={{ flex: 1 }} />
+              <button className="btn btn-gold btn-sm" onClick={sendMsg} disabled={sending}>Skicka</button>
+            </div>
+          )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ═══ COMMUNITIES ═══ */
+function CommunitiesTab() {
+  const [comms, setComms] = useState<any[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
+  const [title, setTitle] = useState('');
+  const [desc, setDesc] = useState('');
+  const [priv, setPriv] = useState(false);
+
+  const load = () => fetch('/api/user/communities').then(r=>r.json()).then(d=>setComms(d.communities||[]));
+  useEffect(() => { load(); }, []);
+
+  const handleCreate = async () => {
+    if (!title.trim()) return;
+    await fetch('/api/user/communities', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'create', title, description: desc, isPrivate: priv }),
+    });
+    setTitle(''); setDesc(''); setPriv(false); setShowCreate(false); load();
+  };
+
+  const toggleJoin = async (id: number, isMember: boolean) => {
+    await fetch('/api/user/communities', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: isMember ? 'leave' : 'join', communityId: id }),
+    });
+    load();
+  };
+
+  return (
+    <div className="panel">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h2 style={{ margin: 0 }}>Communities</h2>
+        <button className="btn btn-gold btn-sm" onClick={() => setShowCreate(!showCreate)}>
+          {showCreate ? 'Avbryt' : 'Skapa Community'}
+        </button>
+      </div>
+
+      {showCreate && (
+        <div style={{ background: 'var(--black-lighter)', border: '1px solid var(--gold-dark)', padding: '1.5rem', marginBottom: '1.5rem' }}>
+          <div className="field-group">
+            <label className="field-label">Titel *</label>
+            <input className="field" value={title} onChange={e=>setTitle(e.target.value)} />
+          </div>
+          <div className="field-group">
+            <label className="field-label">Beskrivning</label>
+            <input className="field" value={desc} onChange={e=>setDesc(e.target.value)} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '.5rem', color: 'var(--gold-light)', cursor: 'pointer', marginBottom: '1rem' }}>
+            <input type="checkbox" checked={priv} onChange={e=>setPriv(e.target.checked)} style={{ accentColor: 'var(--gold)' }} />
+            Stängt community (kräver ansökan)
+          </label>
+          <button className="btn btn-gold btn-sm" onClick={handleCreate}>Skapa</button>
+        </div>
+      )}
+
+      {comms.length === 0 ? (
+        <p style={{ fontStyle: 'italic', opacity: .5, textAlign: 'center' }}>Inga communities ännu. Skapa det första!</p>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          {comms.map(c => (
+            <div key={c.id} style={{
+              background: 'var(--black-lighter)', border: '1px solid var(--gold-dark)',
+              padding: '1.5rem', transition: 'all .3s',
+            }}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='var(--gold)'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='var(--gold-dark)'}>
+              <h3 style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)', marginBottom: '.4rem', fontSize: '1.1rem' }}>{c.title}</h3>
+              {c.description && <p style={{ color: 'var(--gold-light)', fontSize: '.9rem', marginBottom: '.8rem' }}>{c.description}</p>}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--gold-dark)', fontSize: '.85rem' }}>{c.member_count} medlemmar</span>
+                <span style={{ color: c.is_private ? '#ff6b6b' : 'var(--gold)', fontSize: '.85rem' }}>
+                  {c.is_private ? '🔒 Stängt' : '🌍 Öppet'}
+                </span>
+              </div>
+              <button
+                className={c.is_member ? 'btn-reject' : 'btn-approve'}
+                style={{ width: '100%', marginTop: '1rem', padding: '.5rem' }}
+                onClick={() => toggleJoin(c.id, c.is_member)}>
+                {c.is_member ? 'Lämna' : 'Gå med'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══ EVENTS ═══ */
+function EventsTab() {
+  const [events, setEvents] = useState<any[]>([]);
+  const load = () => fetch('/api/user/events').then(r=>r.json()).then(d=>setEvents(d.events||[]));
+  useEffect(() => { load(); }, []);
+
+  const toggleInterest = async (eventId: number) => {
+    await fetch('/api/user/events', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ eventId }),
+    });
+    load();
+  };
+
+  return (
+    <div className="panel">
+      <h2>Evenemang</h2>
+      <p>Kommande events och tillställningar</p>
+      {events.length === 0 ? (
+        <p style={{ fontStyle: 'italic', opacity: .5, marginTop: '1.5rem', textAlign: 'center' }}>Inga evenemang planerade ännu</p>
+      ) : (
+        <div style={{ marginTop: '1.5rem' }}>
+          {events.map(ev => {
+            const d = new Date(ev.event_date);
+            return (
+              <div key={ev.id} style={{
+                background: 'var(--black-lighter)', border: '1px solid var(--gold-dark)',
+                padding: '1.5rem', marginBottom: '1rem',
+                display: 'grid', gridTemplateColumns: '80px 1fr auto', gap: '1.5rem', alignItems: 'center',
+              }}>
+                <div style={{ textAlign: 'center', borderRight: '1px solid var(--gold-dark)', paddingRight: '1rem' }}>
+                  <div style={{ fontSize: '2.5rem', color: 'var(--gold)', fontWeight: 600, lineHeight: 1 }}>{d.getDate()}</div>
+                  <div style={{ color: 'var(--gold-light)', fontSize: '1rem', textTransform: 'capitalize' }}>
+                    {d.toLocaleDateString('sv-SE', { month: 'short' })}
+                  </div>
+                </div>
+                <div>
+                  <h3 style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)', marginBottom: '.3rem' }}>{ev.title}</h3>
+                  {ev.description && <p style={{ color: 'var(--gold-light)', fontSize: '.92rem', marginBottom: '.3rem' }}>{ev.description}</p>}
+                  {ev.location && <p style={{ color: 'var(--gold-dark)', fontSize: '.88rem' }}>📍 {ev.location}</p>}
+                  <p style={{ color: 'var(--gold-dark)', fontSize: '.85rem', marginTop: '.3rem' }}>{ev.interest_count} intresserade</p>
+                </div>
+                <button className={`btn ${ev.has_interest ? 'btn-outline' : 'btn-gold'} btn-sm`}
+                  onClick={() => toggleInterest(ev.id)} style={{ whiteSpace: 'nowrap' }}>
+                  {ev.has_interest ? '✓ Intresserad' : 'Visa intresse'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══ PROFILE ═══ */
+function ProfileTab() {
+  const [user, setUser] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [pw, setPw] = useState('');
+
+  useEffect(() => {
+    fetch('/api/user/profile').then(r=>r.json()).then(d=>{ if(d.user) setUser(d.user); });
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true); setMsg('');
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ ...user, password: pw || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMsg('Profil uppdaterad!'); setPw('');
+    } catch (err: any) { setMsg('Fel: ' + err.message); }
+    finally { setSaving(false); }
+  };
+
+  if (!user) return <p style={{ textAlign: 'center', color: 'var(--gold-light)', padding: '2rem', opacity: .6 }}>Laddar…</p>;
+
+  const yearOpts = Array.from({ length: 82 }, (_, i) => new Date().getFullYear() - 18 - i);
+
+  return (
+    <div className="panel">
+      <h2>Min Profil</h2>
+      <div style={{ textAlign: 'center', margin: '2rem 0' }}>
+        <div className="avatar" style={{ width: 120, height: 120, fontSize: '3.5rem', margin: '0 auto 1rem' }}>
+          {user.name.charAt(0).toUpperCase()}
+        </div>
+        <h3 style={{ color: 'var(--gold)', fontFamily: 'var(--font-display)' }}>{user.name}</h3>
+        <p style={{ color: 'var(--gold-light)', fontSize: '.92rem' }}>{user.email}</p>
+      </div>
+
+      {msg && <div className={`alert ${msg.startsWith('Fel') ? 'alert-err' : 'alert-ok'}`}>{msg}</div>}
+
+      <form onSubmit={handleSave}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <div className="field-group">
+            <label className="field-label">Namn</label>
+            <input className="field" value={user.name} onChange={e=>setUser({...user,name:e.target.value})} />
+          </div>
+          <div className="field-group">
+            <label className="field-label">E-post</label>
+            <input className="field" type="email" value={user.email} onChange={e=>setUser({...user,email:e.target.value})} />
+          </div>
+          <div className="field-group">
+            <label className="field-label">Telefon</label>
+            <input className="field" value={user.phone} onChange={e=>setUser({...user,phone:e.target.value})} />
+          </div>
+          <div className="field-group">
+            <label className="field-label">Födelseår</label>
+            <select className="field field-select" value={user.birth_year} onChange={e=>setUser({...user,birth_year:parseInt(e.target.value)})}>
+              {yearOpts.map(y=><option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div className="field-group">
+            <label className="field-label">Kön</label>
+            <select className="field field-select" value={user.gender} onChange={e=>setUser({...user,gender:e.target.value})}>
+              <option value="male">Man</option><option value="female">Kvinna</option><option value="other">Annat</option>
+            </select>
+          </div>
+          <div className="field-group">
+            <label className="field-label">Civilstatus</label>
+            <select className="field field-select" value={user.civil_status} onChange={e=>setUser({...user,civil_status:e.target.value})}>
+              <option value="single">Singel</option><option value="taken">Upptagen</option><option value="undisclosed">Vill ej ange</option>
+            </select>
+          </div>
+          <div className="field-group">
+            <label className="field-label">Ort</label>
+            <input className="field" value={user.city||''} onChange={e=>setUser({...user,city:e.target.value})} />
+          </div>
+          <div className="field-group">
+            <label className="field-label">Län</label>
+            <select className="field field-select" value={user.county} onChange={e=>setUser({...user,county:e.target.value})}>
+              {COUNTIES.map(c=><option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="field-group" style={{ marginTop: '1rem' }}>
+          <label className="field-label">Nytt lösenord (lämna tomt för att behålla)</label>
+          <input className="field" type="password" value={pw} onChange={e=>setPw(e.target.value)} placeholder="Minst 8 tecken" minLength={8} />
+        </div>
+        <button className="btn btn-gold" type="submit" disabled={saving} style={{ marginTop: '1rem' }}>
+          {saving ? 'Sparar…' : 'Spara ändringar'}
+        </button>
+      </form>
     </div>
   );
 }
